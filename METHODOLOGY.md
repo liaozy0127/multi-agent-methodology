@@ -793,6 +793,68 @@ EOF
 mv /tmp/pipeline-state.json.new /path/to/pipeline-state.json
 ```
 
+### 6.6 Docker + MySQL 中文乱码问题
+
+**问题表现：**
+- 接口返回中文字段显示乱码（如 `è¶…çº§ç®¡ç†å'˜` 而非 `超级管理员`）
+- 数据库中 `HEX(field)` 显示双重 UTF-8 编码（如 `C3A8C2B6...`）
+- MySQL 容器 `SHOW VARIABLES LIKE 'character%'` 显示 `character_set_client=latin1`
+
+**根本原因：**
+
+SQL 初始化脚本执行时，MySQL 默认用 `latin1` 解析文件内容。UTF-8 中文字节被当作 latin1 读取后再以 utf8mb4 存储，造成**双重编码**，数据已损坏。
+
+**正确配置（三处缺一不可）：**
+
+**① SQL 初始化文件开头声明字符集（最关键）：**
+```sql
+-- init.sql 第一行必须是：
+SET NAMES utf8mb4;
+SET character_set_client = utf8mb4;
+
+CREATE DATABASE IF NOT EXISTS mydb DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+**② docker-compose.yml 中 MySQL 启动参数：**
+```yaml
+mysql:
+  image: mysql:8.0
+  environment:
+    MYSQL_CHARACTER_SET_SERVER: utf8mb4
+    MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+  command: >
+    --character-set-server=utf8mb4
+    --collation-server=utf8mb4_unicode_ci
+    --init-connect='SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci'
+```
+
+**③ Spring Boot application.yml 强制 UTF-8：**
+```yaml
+server:
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  datasource:
+    url: jdbc:mysql://host:3306/db?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci
+    hikari:
+      connection-init-sql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+```
+
+**已损坏数据的修复方法：**
+```bash
+# 删除数据卷，重新初始化（数据会清空）
+docker-compose down -v
+docker-compose up -d
+```
+
+> ⚠️ **注意**：`SHOW VARIABLES LIKE 'character%'` 显示的 `character_set_client=latin1`
+> 是 MySQL CLI 工具自身的连接字符集，不代表应用连接的字符集。
+> 以实际 `HEX(field)` 值和接口返回为准。
+
 ---
 
 ## 附录：快速检查清单
