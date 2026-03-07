@@ -79,6 +79,45 @@ flowchart TD
          → 用户发送的其他消息堆积，无响应
 ```
 
+### 1.5 流水线自动推进原则（⚠️ 关键）
+
+**Sub-Agent 完成后，主 Agent 必须自动推进到下一阶段，无需等待用户询问。**
+
+**工作机制：**
+
+当 Sub-Agent 完成任务后，OpenClaw 会以消息形式将结果**推送**给主 Agent（就像收到用户消息一样）。主 Agent 收到这条推送后，必须立即执行下一阶段，而不是被动等待用户说"继续"。
+
+**主 Agent 收到 Sub-Agent 完成消息后的标准处理流程：**
+
+```
+1. 识别完成标记（STAGE_COMPLETE / DEPLOY_COMPLETE 等）
+2. 读取 pipeline-state.json，确认当前阶段
+3. 执行条件判断（是否通过质量门控）
+4. 立即 spawn 下一阶段的 Sub-Agent
+5. 更新 pipeline-state.json（标记当前阶段 done，写入 nextStage）
+6. 通知用户："✅ Stage N 完成，已自动启动 Stage N+1"
+```
+
+**⚠️ 常见错误：**
+```
+❌ 错误：收到 STAGE_COMPLETE 后，等待用户说"继续"或"下一步"
+❌ 错误：收到 STAGE_COMPLETE 后，只回复"已完成"，不启动下一阶段
+✅ 正确：收到 STAGE_COMPLETE 后，立即读取状态 → 判断 → spawn 下一阶段
+```
+
+**为什么容易犯这个错误：**
+
+AI 模型的默认行为是"完成一件事后等待指令"。在多 Agent 流水线场景下，需要**显式覆盖**这个默认行为：主 Agent 收到 Sub-Agent 完成消息，本质上就是"下一步的触发信号"，应当立即响应执行，而不是向用户汇报后等待。
+
+**在 Prompt 中必须明确写出：**
+```
+当你收到任何 Sub-Agent 的完成消息（包含 STAGE_COMPLETE）时：
+- 立即读取 pipeline-state.json
+- 立即计算下一阶段
+- 立即 spawn 下一阶段的 Sub-Agent
+- 无需等待用户确认
+```
+
 ### 1.2 角色分工原则
 
 每个 Agent 只做一件事，职责边界清晰。
