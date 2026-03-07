@@ -1,0 +1,9 @@
+flowchart TD
+    DA[💻 开发 Agent] --> RA
+    RA[🔍 审查 Agent] -->|✅ 评分 ≥ 85 且无高危| TA
+    RA -->|❌ 评分 < 85 或有高危| FA
+    TA[🧪 测试 Agent] -->|✅ 全部 PASS| DPA[🚀 部署阶段]
+    TA -->|❌ 有 FAIL| FA
+    FA[🔧 修复 Agent] -->|iteration ≤ 3| RA
+    FA -->|iteration > 3| HUMAN([⚠️ 人工介入])
+    DPA --> END([✅ 完成])

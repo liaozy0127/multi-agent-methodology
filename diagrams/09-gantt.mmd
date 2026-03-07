@@ -1,0 +1,28 @@
+gantt
+    title sanitary-admin 多模块流水线执行记录
+    dateFormat  X
+    axisFormat  迭代 %s
+
+    section SysDept 部门管理
+    开发           :done, d1, 0, 1
+    审查72分❌     :crit, r1, 1, 2
+    修复           :done, f1, 2, 3
+    审查88分✅     :done, r2, 3, 4
+    测试80pct❌    :crit, t1, 4, 5
+    修复           :done, f2, 5, 6
+    审查91分✅     :done, r3, 6, 7
+    测试100pct✅   :done, t2, 7, 8
+
+    section SysUser 用户管理
+    开发           :done, d2, 0, 1
+    审查68分❌     :crit, r4, 1, 2
+    修复           :done, f3, 2, 3
+    审查78分❌     :crit, r5, 3, 4
+    修复           :done, f4, 4, 5
+    审查86分✅     :done, r6, 5, 6
+    测试100pct✅   :done, t3, 6, 7
+
+    section SysRole 角色管理
+    开发           :done, d3, 0, 1
+    审查89分✅     :done, r7, 1, 2
+    测试100pct✅   :done, t4, 2, 3

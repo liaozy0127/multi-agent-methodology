@@ -1,0 +1,9 @@
+flowchart LR
+    START([测试通过]) --> B[重新编译构建]
+    B --> C[停止旧进程]
+    C --> D[启动新版本]
+    D --> E{健康检查}
+    E -->|✅ 通过| F[冒烟测试]
+    E -->|❌ 超时60s| FAIL([🔴 DEPLOY_FAILED])
+    F -->|✅ 通过| OK([🟢 DEPLOY_COMPLETE])
+    F -->|❌ 失败| FAIL

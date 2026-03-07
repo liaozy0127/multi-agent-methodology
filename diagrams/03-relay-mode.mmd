@@ -1,0 +1,6 @@
+flowchart LR
+    DA[💻 开发 Agent] -->|STAGE_COMPLETE| RA[🔍 审查 Agent]
+    RA -->|REVIEW_COMPLETE| TA[🧪 测试 Agent]
+    TA -->|TEST_COMPLETE| END([✅ 完成])
+    RA -->|失败| STOP([🛑 停止])
+    TA -->|FAIL| STOP

@@ -1,0 +1,7 @@
+flowchart TD
+    OA[🎛️ Orchestrator Agent] --> DA[💻 开发 Agent]
+    DA --> RA[🔍 审查 Agent]
+    RA -->|✅ 通过| TA[🧪 测试 Agent]
+    RA -->|❌ 失败| FA[🔧 修复 Agent]
+    FA --> TA
+    TA --> SUM([📋 汇总结果])

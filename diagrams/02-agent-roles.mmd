@@ -1,0 +1,35 @@
+graph TB
+    U([👤 用户]) <-->|需求 / 报告| MA
+
+    subgraph MAIN ["主 Agent（Main）"]
+        MA[主 Agent\n调度 · 监控 · 汇报]
+    end
+
+    subgraph PIPELINE ["流水线 Sub-Agents"]
+        OA[🎛️ Orchestrator\n编排 Agent]
+        DA[💻 Developer\n开发 Agent]
+        RA[🔍 Reviewer\n审查 Agent]
+        TA[🧪 Tester\n测试 Agent]
+        FA[🔧 Fixer\n修复 Agent]
+        DPA[🚀 Deployer\n部署 Agent]
+    end
+
+    subgraph FILES ["共享状态文件"]
+        PS[(pipeline-state.json)]
+        RR[(review-report.json)]
+        TR[(test-report.json)]
+    end
+
+    MA -->|spawn| OA
+    OA -->|spawn| DA
+    OA -->|spawn| RA
+    OA -->|spawn| TA
+    OA -->|spawn| FA
+    OA -->|spawn| DPA
+
+    DA -->|写入状态| PS
+    RA -->|写入报告| RR
+    TA -->|写入报告| TR
+    FA -->|读取报告| RR
+    FA -->|读取报告| TR
+    OA -->|读写状态| PS
