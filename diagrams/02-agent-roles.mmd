@@ -2,16 +2,16 @@ graph TB
     U([👤 用户]) <-->|需求 / 报告| MA
 
     subgraph MAIN ["主 Agent（Main）"]
-        MA[主 Agent\n调度 · 监控 · 汇报]
+        MA[主 Agent<br>调度 · 监控 · 汇报]
     end
 
     subgraph PIPELINE ["流水线 Sub-Agents"]
-        OA[🎛️ Orchestrator\n编排 Agent]
-        DA[💻 Developer\n开发 Agent]
-        RA[🔍 Reviewer\n审查 Agent]
-        TA[🧪 Tester\n测试 Agent]
-        FA[🔧 Fixer\n修复 Agent]
-        DPA[🚀 Deployer\n部署 Agent]
+        OA[🎛️ Orchestrator<br>编排 Agent]
+        DA[💻 Developer<br>开发 Agent]
+        RA[🔍 Reviewer<br>审查 Agent]
+        TA[🧪 Tester<br>测试 Agent]
+        FA[🔧 Fixer<br>修复 Agent]
+        DPA[🚀 Deployer<br>部署 Agent]
     end
 
     subgraph FILES ["共享状态文件"]

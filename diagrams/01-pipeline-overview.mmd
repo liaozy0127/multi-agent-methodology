@@ -1,28 +1,28 @@
 flowchart TD
-    U([👤 用户下达需求]) --> M{主 Agent\n选择运行模式}
+    U([👤 用户下达需求]) --> M{主 Agent<br>选择运行模式}
 
-    M -->|全自动模式| A1[spawn Orchestrator\nSub-Agent]
+    M -->|全自动模式| A1[spawn Orchestrator<br>Sub-Agent]
     M -->|人工审查模式| B1[主 Agent 逐阶段驱动]
 
     subgraph AUTO ["🤖 全自动模式"]
-        A1 --> A2[Stage 1: 开发\n实现功能 + git commit]
-        A2 --> A3[Stage 2: 审查\n评分 + 问题列表]
-        A3 -->|评分 ≥ 85 且无高危| A4[Stage 3: 测试\n接口测试]
-        A3 -->|评分 < 85 或有高危| A5[Stage 4: 修复\ngit commit]
+        A1 --> A2[Stage 1: 开发<br>实现功能 + git commit]
+        A2 --> A3[Stage 2: 审查<br>评分 + 问题列表]
+        A3 -->|评分 ≥ 85 且无高危| A4[Stage 3: 测试<br>接口测试]
+        A3 -->|评分 < 85 或有高危| A5[Stage 4: 修复<br>git commit]
         A5 -->|回到审查 最多3次| A3
-        A4 -->|全 PASS| A6[Stage 5: 部署\n编译→健康检查→冒烟测试]
+        A4 -->|全 PASS| A6[Stage 5: 部署<br>编译→健康检查→冒烟测试]
         A4 -->|有 FAIL| A5
     end
 
     subgraph MANUAL ["👁️ 人工审查模式"]
-        B1 --> B2[Stage 1: 开发\nSub-Agent 执行]
+        B1 --> B2[Stage 1: 开发<br>Sub-Agent 执行]
         B2 --> B3[⏸ 推送审查报告摘要]
-        B3 -->|用户: 通过| B4[Stage 3: 测试\nSub-Agent 执行]
+        B3 -->|用户: 通过| B4[Stage 3: 测试<br>Sub-Agent 执行]
         B3 -->|用户: 修改| B2
         B4 --> B5[⏸ 推送测试报告摘要]
         B5 -->|用户: 通过| B6[⏸ 确认部署信息]
         B5 -->|用户: 修复| B2
-        B6 -->|用户: 部署| B7[Stage 5: 部署\nSub-Agent 执行]
+        B6 -->|用户: 部署| B7[Stage 5: 部署<br>Sub-Agent 执行]
         B6 -->|用户: 取消| B8([🚫 取消])
     end
 
