@@ -44,6 +44,39 @@
 
 ## 模块开发流水线记录
 
+### 模块执行总览
+
+```mermaid
+gantt
+    title sanitary-admin 多模块流水线执行记录
+    dateFormat  X
+    axisFormat  迭代 %s
+
+    section SysDept 部门管理
+    开发          :done, d1, 0, 1
+    审查(72分❌)  :crit, r1, 1, 2
+    修复          :done, f1, 2, 3
+    审查(88分✅)  :done, r2, 3, 4
+    测试(80%❌)  :crit, t1, 4, 5
+    修复          :done, f2, 5, 6
+    审查(91分✅)  :done, r3, 6, 7
+    测试(100%✅) :done, t2, 7, 8
+
+    section SysUser 用户管理
+    开发          :done, d2, 0, 1
+    审查(68分❌)  :crit, r4, 1, 2
+    修复          :done, f3, 2, 3
+    审查(78分❌)  :crit, r5, 3, 4
+    修复          :done, f4, 4, 5
+    审查(86分✅)  :done, r6, 5, 6
+    测试(100%✅) :done, t3, 6, 7
+
+    section SysRole 角色管理
+    开发          :done, d3, 0, 1
+    审查(89分✅)  :done, r7, 1, 2
+    测试(100%✅) :done, t4, 2, 3
+```
+
 ### 模块1：SysDept 部门管理模块
 
 **需求描述：** 实现部门的 CRUD 操作，支持树形结构
@@ -222,6 +255,13 @@
 | **总计** | **2730** | **1350** | **19** | **avg: 89** |
 
 ### 质量指标
+
+```mermaid
+pie title 三模块代码质量评分分布
+    "SysDept (91分)" : 91
+    "SysUser (86分)" : 86
+    "SysRole (89分)" : 89
+```
 
 | 指标 | 数值 |
 |------|------|
