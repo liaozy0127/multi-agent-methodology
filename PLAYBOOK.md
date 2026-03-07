@@ -126,39 +126,51 @@ done
     "baseUrl": "<YOUR_BASE_URL>"
   },
   "roles": {
+    "orchestrator": {
+      "description": "流水线编排，需要推理/决策能力强的模型",
+      "model": "<YOUR_ORCH_MODEL>",
+      "fallback": "<YOUR_ORCH_FALLBACK>",
+      "timeout": 3600,
+      "capabilities": ["pipeline-management", "decision-making"]
+    },
     "developer": {
-      "description": "负责代码生成和单元测试编写",
+      "description": "代码生成，需要代码能力最强的模型",
       "model": "<YOUR_DEV_MODEL>",
+      "fallback": "<YOUR_DEV_FALLBACK>",
       "timeout": 600,
       "capabilities": ["code-generation", "test-writing"]
     },
     "reviewer": {
-      "description": "负责代码审查，识别安全和质量问题",
+      "description": "代码审查，需要推理深度强、安全意识高的模型",
       "model": "<YOUR_REVIEW_MODEL>",
+      "fallback": "<YOUR_REVIEW_FALLBACK>",
       "timeout": 300,
       "capabilities": ["code-review", "security-audit"]
     },
     "tester": {
-      "description": "负责执行自动化测试",
+      "description": "构建验证和接口测试，需要执行速度快的模型",
       "model": "<YOUR_TEST_MODEL>",
+      "fallback": "<YOUR_TEST_FALLBACK>",
       "timeout": 600,
       "capabilities": ["test-execution", "report-generation"]
     },
     "fixer": {
-      "description": "负责根据报告修复问题",
+      "description": "问题修复，需要代码能力强且理解问题上下文",
       "model": "<YOUR_FIX_MODEL>",
+      "fallback": "<YOUR_FIX_FALLBACK>",
       "timeout": 600,
       "capabilities": ["code-fixing"]
     },
-    "orchestrator": {
-      "description": "负责流水线编排和状态管理",
-      "model": "<YOUR_ORCH_MODEL>",
-      "timeout": 3600,
-      "capabilities": ["pipeline-management", "decision-making"]
+    "deployer": {
+      "description": "Docker构建部署，需要执行速度快、命令行熟练",
+      "model": "<YOUR_DEPLOY_MODEL>",
+      "fallback": "<YOUR_DEPLOY_FALLBACK>",
+      "timeout": 600,
+      "capabilities": ["docker", "shell"]
     }
   },
   "quality": {
-    "reviewPassScore": 85,
+    "reviewPassScore": 80,
     "testPassRate": 100,
     "maxIterations": 3
   },
@@ -170,19 +182,59 @@ done
 }
 ```
 
+#### 模型分配建议
+
+不同角色对模型能力的需求不同，**不要所有角色都用同一个模型**：
+
+| 角色 | 核心能力需求 | 推荐首选 | 推荐降级 |
+|------|------------|---------|---------|
+| Orchestrator | 推理强、决策准 | Claude Sonnet | GLM |
+| Developer | 代码生成能力最强 | Claude Sonnet | Qwen3-Coder |
+| Reviewer | 推理深度、安全意识 | GLM | Claude Sonnet |
+| Tester | 执行速度快、命令行 | Claude Haiku | GLM |
+| Fixer | 代码能力强、理解上下文 | Claude Sonnet | Qwen3-Coder |
+| Deployer | 执行速度快、命令行 | Claude Haiku | GLM |
+
+> **设计原则**：代码生成用最强模型，审查用推理型模型，执行验证用快速模型。
+> 这样既保证质量，又控制成本和速度。
+
+#### 降级策略
+
+每个角色必须配置 `fallback` 模型，当主模型不可用时自动降级：
+
+```
+主模型不可用（API 超时/限流/错误）
+    ↓
+使用 fallback 模型重试
+    ↓
+若 fallback 也不可用 → 停止流水线，通知用户介入
+```
+
+**降级触发条件：**
+- API 返回 503/429（服务不可用/限流）
+- 连续 3 次超时
+- 模型返回明显错误（如输出乱码、拒绝执行）
+
 **占位符说明：**
 
-| 占位符 | 说明 | 示例 |
-|--------|------|------|
+| 占位符 | 说明 | 示例（公司环境） |
+|--------|------|----------------|
 | `<YOUR_PROJECT_NAME>` | 项目名称 | `my-web-app` |
 | `<YOUR_PROJECT_DIR>` | 项目根目录绝对路径 | `/home/user/projects/my-app` |
 | `<YOUR_TECH_STACK>` | 技术栈描述 | `Spring Boot + MyBatis + Vue` |
 | `<YOUR_BASE_URL>` | 接口测试地址 | `http://localhost:8080` |
-| `<YOUR_DEV_MODEL>` | 开发 Agent 模型 | `anthropic/claude-4-sonnet` |
+| `<YOUR_ORCH_MODEL>` | 编排 Agent 模型 | `anthropic/claude-4.5-sonnet` |
+| `<YOUR_ORCH_FALLBACK>` | 编排降级模型 | `anthropic/glm-5` |
+| `<YOUR_DEV_MODEL>` | 开发 Agent 模型 | `anthropic/claude-4.5-sonnet` |
+| `<YOUR_DEV_FALLBACK>` | 开发降级模型 | `anthropic/qwen3-coder-plus` |
 | `<YOUR_REVIEW_MODEL>` | 审查 Agent 模型 | `anthropic/glm-5` |
-| `<YOUR_TEST_MODEL>` | 测试 Agent 模型 | `anthropic/glm-5` |
-| `<YOUR_FIX_MODEL>` | 修复 Agent 模型 | `anthropic/claude-4-sonnet` |
-| `<YOUR_ORCH_MODEL>` | 编排 Agent 模型 | `anthropic/glm-5` |
+| `<YOUR_REVIEW_FALLBACK>` | 审查降级模型 | `anthropic/claude-4.5-sonnet` |
+| `<YOUR_TEST_MODEL>` | 测试 Agent 模型 | `anthropic/claude-4.5-haiku` |
+| `<YOUR_TEST_FALLBACK>` | 测试降级模型 | `anthropic/glm-5` |
+| `<YOUR_FIX_MODEL>` | 修复 Agent 模型 | `anthropic/claude-4.5-sonnet` |
+| `<YOUR_FIX_FALLBACK>` | 修复降级模型 | `anthropic/qwen3-coder-plus` |
+| `<YOUR_DEPLOY_MODEL>` | 部署 Agent 模型 | `anthropic/claude-4.5-haiku` |
+| `<YOUR_DEPLOY_FALLBACK>` | 部署降级模型 | `anthropic/glm-5` |
 | `<YOUR_CHANNEL_ID>` | 通知渠道 | `feishu:ou_xxx` 或 `discord:123456` |
 
 ---

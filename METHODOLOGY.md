@@ -561,6 +561,51 @@ flowchart TD
 - 检测到质量问题时升级模型
 - 通过后回退轻量级模型
 
+### 4.4 降级策略（⚠️ 必须配置）
+
+**每个角色都必须配置 `fallback` 降级模型**，当主模型不可用时自动切换，避免整条流水线因单个模型故障中断。
+
+**推荐降级配置表：**
+
+| 角色 | 首选模型 | 降级模型 | 说明 |
+|------|---------|---------|------|
+| Orchestrator | Claude Sonnet | GLM | 推理能力接近，可替代决策 |
+| Developer | Claude Sonnet | Qwen3-Coder | 同样擅长代码生成 |
+| Reviewer | GLM | Claude Sonnet | 推理深度互补 |
+| Tester | Claude Haiku | GLM | 执行速度均可 |
+| Fixer | Claude Sonnet | Qwen3-Coder | 代码修复能力接近 |
+| Deployer | Claude Haiku | GLM | 命令行执行均可 |
+
+**降级触发条件：**
+- API 返回 503 / 429（服务不可用 / 限流）
+- 连续 3 次请求超时
+- 模型返回明显异常（拒绝执行、输出乱码）
+
+**降级处理流程：**
+```
+主模型请求失败
+    ↓
+自动切换到 fallback 模型重试（同一任务，不重置状态）
+    ↓
+fallback 成功 → 继续流水线，在报告中标注「已降级执行」
+    ↓
+fallback 也失败 → 停止流水线，通知用户：
+  "⚠️ Stage N 模型全部不可用（主模型: XXX，降级模型: YYY），请介入处理"
+```
+
+**在 agent-roles.json 中的配置方式：**
+```json
+{
+  "roles": {
+    "developer": {
+      "model": "anthropic/claude-4.5-sonnet",
+      "fallback": "anthropic/qwen3-coder-plus",
+      "description": "代码生成，主模型不可用时降级到 Qwen3-Coder"
+    }
+  }
+}
+```
+
 ---
 
 ## 5. 质量标准
