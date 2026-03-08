@@ -109,6 +109,39 @@ flowchart TD
 
 AI 模型的默认行为是"完成一件事后等待指令"。在多 Agent 流水线场景下，需要**显式覆盖**这个默认行为：主 Agent 收到 Sub-Agent 完成消息，本质上就是"下一步的触发信号"，应当立即响应执行，而不是向用户汇报后等待。
 
+---
+
+### ⚠️ 通知机制的可靠性问题（重要！）
+
+> **实践教训（2026-03-08）**：`STAGE_COMPLETE` 推送并不总是可靠。
+> Sub-Agent 在子进程中执行 `openclaw system event` 时可能静默失败，导致主 Agent 永远等不到通知，流水线卡死，用户也收不到任何反馈。
+
+**必须采用双保险机制：**
+
+```
+方式A：Sub-Agent 主动推送（不可靠，辅助）
+  → Sub-Agent 输出 STAGE_COMPLETE
+  → 执行 openclaw system event 或 message 工具发通知
+  ⚠️ 子进程环境中可能失败
+
+方式B：主 Agent 心跳轮询（可靠，主要保障）
+  → 心跳间隔设为 5 分钟（流水线执行期间）
+  → 每次心跳：subagents(action=list) 检查状态
+  → 发现 done 未推进 → 立即推进
+  → 发现超时卡死 → kill + 告警用户
+```
+
+**HEARTBEAT.md 必须包含流水线监控逻辑（不能只靠推送）：**
+
+```markdown
+## 流水线监控（每次心跳必查）
+- subagents(action=list) 检查所有 active sub-agent
+- 运行超过 10 分钟 → 检查最后消息时间
+- 最后消息超过 5 分钟无更新 → 判定卡死，kill + 通知
+- 运行超过 30 分钟 → 直接 kill + 通知
+- 检查 pipeline-state.json：有 done 但未推进的 Stage → 立即推进
+```
+
 **在 Prompt 中必须明确写出：**
 ```
 当你收到任何 Sub-Agent 的完成消息（包含 STAGE_COMPLETE）时：

@@ -28,6 +28,29 @@
 ```
 
 > **根本原因**：AI 模型的默认行为是"完成一件事后等待用户指令"。
+
+### 规范二：STAGE_COMPLETE 推送不可靠，必须有心跳兜底
+
+> ⚠️ **实践教训（2026-03-08）**：`openclaw system event` 在 Sub-Agent 子进程中**可能静默失败**，导致主 Agent 永远等不到通知，流水线卡死。
+
+**主 Agent 必须同时维护心跳轮询作为兜底：**
+
+```
+❌ 错误做法：只靠 STAGE_COMPLETE 推送驱动流水线
+✅ 正确做法：推送 + 心跳双保险
+
+  Sub-Agent 推送（尽力而为）
+       +
+  主 Agent 心跳检查（每 5 分钟，流水线执行期间）
+       ↓
+  任意一方触发 → 推进下一阶段
+```
+
+**心跳检查内容（写入 HEARTBEAT.md）：**
+- `subagents(action=list)` 查看所有 Sub-Agent 状态
+- 发现 `status=done` 但未推进 → 立即推进
+- 发现运行超过 30 分钟 → kill + 告警
+- 检查 `pipeline-state.json` 是否有卡死的 Stage
 > 在流水线场景下必须显式覆盖这个默认行为：**Sub-Agent 完成消息 = 下一阶段的触发信号，不是汇报终点。**
 
 ### 规范二：主 Agent 始终保持响应
@@ -298,16 +321,50 @@ openclaw sessions kill <SESSION_ID>
 
 #### 设置心跳监控
 
+> ⚠️ **实践教训**：Sub-Agent 的 `STAGE_COMPLETE` 推送**不可靠**（子进程环境中 `openclaw system event` 可能静默失败）。
+> **不能只依赖 Sub-Agent 推送，主 Agent 必须同时做主动轮询兜底。**
+
+##### 通知双保险机制
+
+```
+Sub-Agent 完成
+    │
+    ├─ 方式A（主动推送）：Sub-Agent 执行 openclaw system event / message 工具
+    │                    → 主 Agent 收到后立即推进下一阶段
+    │                    ⚠️ 可能失败，不可单独依赖
+    │
+    └─ 方式B（主动轮询）：主 Agent 心跳检查 Sub-Agent 状态
+                         → 每次心跳检查 process log 或 pipeline-state.json
+                         → 发现完成则推进，发现超时则告警
+```
+
+##### HEARTBEAT.md 配置（推荐心跳间隔：5 分钟）
+
 在 OpenClaw 的 `HEARTBEAT.md` 中添加：
 
 ```markdown
 # 心跳检查项
 
 ## 流水线监控
-- 检查 `<YOUR_PROJECT_DIR>/tasks/pipeline-state.json`
-- 如果 `currentStage` 超过 30 分钟未变化，发送告警
-- 如果存在 `status: error`，通知用户
+- 调用 subagents(action=list)，检查所有 active sub-agent
+- 对每个运行中的 sub-agent：
+  - **运行超过 10 分钟** → 调用 sessions_history 检查最后一条消息时间
+  - **最后消息超过 5 分钟没更新** → 判定为卡死，kill + 通知用户
+  - **运行超过 30 分钟** → 无论状态如何，直接 kill + 通知（需要拆分任务）
+- 检查 `<YOUR_PROJECT_DIR>/tasks/pipeline-state.json`：
+  - 如果有 `status: done` 但主 Agent 还没推进下一 Stage → 立即推进
+  - 如果 `currentStage` 超过 30 分钟未变化 → 发送告警
+  - 如果存在 `status: error` → 通知用户介入
 ```
+
+##### 心跳间隔建议
+
+| 场景 | 推荐间隔 |
+|------|---------|
+| 有流水线在运行 | **5 分钟** |
+| 无任务待处理 | 30 分钟 |
+
+> 在流水线执行期间，建议临时把心跳间隔调短到 5 分钟，流水线结束后恢复。
 
 ---
 
@@ -540,9 +597,31 @@ openclaw sessions kill <SESSION_ID>
   - 如果 iteration > maxIterations → 停止，通知人工介入
 
 ### 通知
-- 每个阶段完成后通知用户："✅ Stage N 完成，已自动启动 Stage N+1（模型：XXX）"
-- 流水线结束时发送最终结果汇总
-- 出错时立即通知
+
+> ⚠️ **核心原则：通知必须双保险，不能只依赖 Sub-Agent 推送。**
+
+#### 方式一：Sub-Agent 主动推送（不可靠，作为辅助）
+
+在 Sub-Agent 的 Prompt 末尾加入：
+```
+完成后执行：openclaw system event --text "Stage N 完成：<简要描述>" --mode now
+```
+或通过 message 工具直接发送飞书/Discord 通知。
+
+> ⚠️ 实测发现：在子进程环境中，`openclaw system event` 可能静默失败，推送不到主 Agent。
+
+#### 方式二：主 Agent 心跳轮询（可靠，作为主要保障）
+
+心跳触发时（建议流水线执行期间设为 5 分钟），主 Agent 必须：
+1. 调用 `subagents(action=list)` 检查所有 Sub-Agent 状态
+2. 对 `status=done` 但尚未推进的 Stage → **立即推进下一阶段**
+3. 对运行超时的 Sub-Agent → **kill + 通知用户**
+
+#### 通知内容规范
+
+- **每个 Stage 完成后**：`"✅ Stage N 完成（模型：XXX），已自动启动 Stage N+1"`
+- **流水线全部完成**：发送最终结果汇总（各 Stage 结论、commit hash、测试通过率）
+- **出错/超时**：立即通知，附上错误原因和建议操作
 
 ## 输出
 定期更新 pipeline-state.json，最终输出 PIPELINE_COMPLETE
